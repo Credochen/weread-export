@@ -234,7 +234,16 @@ go run . selftest        # 算法自检
 
 ---
 
-## 八、合规
+## 八、许可与归属
+
+本仓库采用 MIT 许可（见 `LICENSE`）。
+
+`fetch_weread_epub.py` 来自 [finlater/weread.koplugin](https://github.com/finlater/weread.koplugin)，版权归原作者；
+接口协议与签名算法的逆向结论同样来自该项目的 `docs/`。`go/` 下的重写与其余脚本为本仓库原创。
+
+---
+
+## 九、合规
 
 - 仅导出**你自己账号有阅读权益**的书籍，限个人离线阅读。
 - 不要分发、不要商用、不要上传到任何公开仓库。
