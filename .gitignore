@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# 编译产物（可用 go build 重新生成）
+/weread-export
+/go/wereadcore
+
+# 导出结果：包含书籍正文，不入库
+/out/
+
+# 凭证：Cookie 等同账号密码
+cookies.txt
+*cookie*
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+
+# 临时文件
+*.log
+*.swp

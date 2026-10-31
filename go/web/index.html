@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>微信读书导出器</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --border:#e6e8ec; --border-strong:#d3d7de;
+    --text:#1d2129; --muted:#6b7280; --faint:#9aa1ab;
+    --accent:#1E5EFF; --accent-soft:#eef3ff;
+    --ok:#0f7b4f; --ok-soft:#e9f7f0;
+    --err:#c0392b; --err-soft:#fdeceb;
+    --warn:#8a5a00; --warn-soft:#fdf5e3;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:40px 20px 80px}
+  header{margin-bottom:28px}
+  h1{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:22px 24px;margin-bottom:16px;
+  }
+  .card[hidden]{display:none}
+  .card-title{
+    display:flex;align-items:center;gap:9px;margin:0 0 18px;
+    font-size:14px;font-weight:600;
+  }
+  .step{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:6px;background:var(--accent-soft);
+    color:var(--accent);font-size:12px;font-weight:600;flex:none;
+  }
+  label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#374151}
+  .hint{font-size:12px;color:var(--faint);margin-top:5px;line-height:1.5}
+  input[type=text],input[type=number],textarea{
+    width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:8px;
+    font:inherit;font-size:13px;background:#fff;color:var(--text);outline:none;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,94,255,.12)}
+  textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5}
+  .field{margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  .row{display:flex;gap:12px}
+  .row>*{flex:1;min-width:0}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 18px;border-radius:8px;border:1px solid transparent;
+    font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    background:var(--accent);color:#fff;transition:opacity .15s,background .15s;
+  }
+  .btn:hover:not(:disabled){opacity:.9}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.ghost{background:#fff;border-color:var(--border-strong);color:var(--text)}
+  .btn.ghost:hover:not(:disabled){background:#f7f8fa}
+  .btn.ok{background:var(--ok)}
+  .actions{display:flex;align-items:center;gap:12px;margin-top:20px}
+  .status{font-size:13px;display:flex;align-items:center;gap:7px;min-height:20px}
+  .status .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--faint)}
+  .status.ok .dot{background:var(--ok)}
+  .status.err .dot{background:var(--err)}
+  .status.run .dot{background:var(--accent);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--err)}
+  .msg{padding:10px 13px;border-radius:8px;font-size:13px;margin-top:14px;display:none}
+  .msg.show{display:block}
+  .msg.ok{background:var(--ok-soft);color:var(--ok)}
+  .msg.err{background:var(--err-soft);color:var(--err)}
+  .msg.warn{background:var(--warn-soft);color:var(--warn)}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 10px;margin-bottom:18px}
+  .chip{
+    padding:4px 10px;border-radius:6px;background:#f3f4f6;color:#4b5563;
+    font-size:12px;white-space:nowrap;
+  }
+  .chip b{font-weight:600;color:var(--text)}
+  .radios{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px}
+  .radio{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+  .radio input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+  .bar{height:6px;border-radius:99px;background:#eceef1;overflow:hidden;margin:4px 0 10px}
+  .bar>i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .3s ease}
+  .bar.done>i{background:var(--ok)}
+  .pct{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:14px}
+  .log{
+    max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;background:#fafbfc;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;
+  }
+  .log div{display:flex;gap:8px}
+  .log .idx{color:var(--faint);flex:none;min-width:44px;text-align:right}
+  .log .txt{color:#374151;word-break:break-word}
+  details{margin-top:14px;border-top:1px solid var(--border);padding-top:14px}
+  summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:500;outline:none;user-select:none}
+  details ol{margin:10px 0 0;padding-left:20px;font-size:12.5px;color:var(--muted);line-height:1.8}
+  details code{
+    background:#f3f4f6;padding:1px 5px;border-radius:4px;
+    font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#374151;
+  }
+  .check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin-top:10px;cursor:pointer}
+  .check input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+  footer{margin-top:28px;font-size:12px;color:var(--faint);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>微信读书导出器</h1>
+    <div class="sub">把你有阅读权益的书导出成本地 EPUB。全程本机运行，Cookie 只留在内存里。</div>
+  </header>
+
+  <section class="card">
+    <h2 class="card-title"><span class="step">1</span>连接配置</h2>
+
+    <div class="field">
+      <label for="readerUrl">阅读页链接</label>
+      <input id="readerUrl" type="text" placeholder="https://weread.qq.com/web/reader/xxxxxxxx" autocomplete="off" spellcheck="false"/>
+      <div class="hint">在浏览器打开要导出的书，把地址栏整条复制过来即可。</div>
+    </div>
+
+    <div class="field">
+      <label for="bookId">或直接填 bookId（可选）</label>
+      <input id="bookId" type="text" placeholder="留空则从链接自动解析" autocomplete="off" spellcheck="false"/>
+    </div>
+
+    <div class="field">
+      <label for="cookie">Cookie</label>
+      <textarea id="cookie" rows="3" placeholder="wr_vid=...; wr_skey=...; wr_rt=...;&#10;或直接粘贴 Cookie-Editor 导出的 JSON 数组"></textarea>
+      <div class="hint">两种格式都认：插件导出的 JSON 数组，或 <code>wr_vid=...; wr_skey=...</code> 形式的请求头。其他站点的条目会自动忽略。</div>
+      <label class="check"><input id="remember" type="checkbox"/> 记住 Cookie（存在本机 localStorage）</label>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btnInspect">检测连接</button>
+      <div class="status" id="inspectStatus"><span class="dot"></span><span class="text">未检测</span></div>
+    </div>
+
+    <div class="msg" id="inspectMsg"></div>
+
+    <details>
+      <summary>Cookie 怎么拿？</summary>
+      <ol>
+        <li>浏览器打开 <code>weread.qq.com</code> 并登录。</li>
+        <li>按 <code>F12</code> 打开开发者工具，切到 <b>Network</b>，筛选 <code>Fetch/XHR</code>。</li>
+        <li>随便点一个请求，在 <b>Request Headers</b> 里找到 <code>Cookie:</code> 整行。</li>
+        <li>至少要有 <code>wr_vid</code>、<code>wr_skey</code>、<code>wr_rt</code> 三个。</li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card" id="bookCard" hidden>
+    <h2 class="card-title"><span class="step">2</span>选择范围</h2>
+
+    <div class="meta" id="bookMeta"></div>
+
+    <div class="radios">
+      <label class="radio"><input type="radio" name="mode" value="all" checked/> 全部章节</label>
+      <label class="radio"><input type="radio" name="mode" value="limit"/> 前 N 章</label>
+      <label class="radio"><input type="radio" name="mode" value="custom"/> 自定义范围</label>
+    </div>
+
+    <div class="row" id="modeExtra" hidden>
+      <div class="field" id="limitField" hidden>
+        <label for="limit">抓取章数</label>
+        <input id="limit" type="number" min="1" value="5"/>
+      </div>
+      <div class="field" id="specField" hidden>
+        <label for="spec">范围</label>
+        <input id="spec" type="text" placeholder="1-20,35,60-"/>
+        <div class="hint">逗号分隔；<code>1-20</code> 表示第 1 到 20 章，<code>60-</code> 表示第 60 章到末尾。</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btnExport">开始导出</button>
+      <div class="status" id="exportStatus"><span class="dot"></span><span class="text">就绪</span></div>
+    </div>
+
+    <div class="msg" id="exportMsg"></div>
+  </section>
+
+  <section class="card" id="progressCard" hidden>
+    <h2 class="card-title"><span class="step">3</span>导出进度</h2>
+
+    <div class="pct"><span id="pctText">0 / 0</span><span id="currentChapter"></span></div>
+    <div class="bar" id="bar"><i></i></div>
+
+    <div class="log" id="log"></div>
+
+    <div class="actions">
+      <button class="btn ok" id="btnDownload" disabled>下载 EPUB</button>
+      <button class="btn ghost" id="btnCancel" disabled>取消</button>
+    </div>
+  </section>
+
+  <footer>
+    仅用于导出你自己账号有阅读权益的书籍，限个人离线阅读；请勿传播或商用。
+  </footer>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const readerUrl = $('readerUrl'), bookId = $('bookId'), cookie = $('cookie');
+  const remember = $('remember');
+  const btnInspect = $('btnInspect'), btnExport = $('btnExport'), btnDownload = $('btnDownload'), btnCancel = $('btnCancel');
+  const inspectStatus = $('inspectStatus'), exportStatus = $('exportStatus');
+  const inspectMsg = $('inspectMsg'), exportMsg = $('exportMsg');
+  const bookCard = $('bookCard'), progressCard = $('progressCard');
+  const bookMeta = $('bookMeta'), logBox = $('log');
+  const bar = $('bar'), pctText = $('pctText'), currentChapter = $('currentChapter');
+
+  let currentJob = null, source = null, bookInfo = null;
+
+  // ---- 本地记忆 ----
+  try{
+    readerUrl.value = localStorage.getItem('wr.readerUrl') || '';
+    bookId.value = localStorage.getItem('wr.bookId') || '';
+    const c = localStorage.getItem('wr.cookie');
+    if (c){ cookie.value = c; remember.checked = true; }
+  }catch(e){}
+
+  function persist(){
+    try{
+      localStorage.setItem('wr.readerUrl', readerUrl.value.trim());
+      localStorage.setItem('wr.bookId', bookId.value.trim());
+      if (remember.checked) localStorage.setItem('wr.cookie', cookie.value.trim());
+      else localStorage.removeItem('wr.cookie');
+    }catch(e){}
+  }
+
+  // ---- 状态显示 ----
+  function setStatus(el, kind, text){
+    el.className = 'status' + (kind ? ' ' + kind : '');
+    el.querySelector('.text').textContent = text;
+  }
+  function showMsg(el, kind, text){
+    el.className = 'msg show ' + kind;
+    el.textContent = text;
+  }
+  function hideMsg(el){ el.className = 'msg'; el.textContent = ''; }
+  function clearLog(){ logBox.innerHTML = ''; }
+
+  function appendLog(index, text){
+    const row = document.createElement('div');
+    const i = document.createElement('span'); i.className = 'idx'; i.textContent = index;
+    const t = document.createElement('span'); t.className = 'txt'; t.textContent = text;
+    row.append(i, t);
+    logBox.appendChild(row);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  // ---- 检测 ----
+  btnInspect.addEventListener('click', async () => {
+    hideMsg(inspectMsg); hideMsg(exportMsg);
+    const ck = cookie.value.trim();
+    if (!ck){ showMsg(inspectMsg, 'err', '请先填写 Cookie'); return; }
+    if (!readerUrl.value.trim() && !bookId.value.trim()){
+      showMsg(inspectMsg, 'err', '请填写阅读页链接或 bookId'); return;
+    }
+    persist();
+
+    btnInspect.disabled = true;
+    setStatus(inspectStatus, 'run', '正在检测…');
+
+    try{
+      const res = await fetch('/api/inspect', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          cookie: ck,
+          readerUrl: readerUrl.value.trim(),
+          bookId: bookId.value.trim()
+        })
+      });
+      const data = await res.json();
+
+      if (!data.ok){
+        bookCard.hidden = true;
+        setStatus(inspectStatus, 'err', '检测失败');
+        let msg = data.message || '未知错误';
+        if (typeof data.cookieCount === 'number'){
+          msg += data.cookieCount > 0
+            ? '｜已解析 ' + data.cookieCount + ' 条：' + (data.cookieNames || []).join(', ')
+            : '｜一条 Cookie 都没解析出来，粘贴内容可能不完整';
+        }
+        showMsg(inspectMsg, 'err', msg);
+        return;
+      }
+
+      bookInfo = data;
+      setStatus(inspectStatus, 'ok',
+        (data.loggedIn ? ('已登录：' + data.account) : '已连接') +
+        '（Cookie ' + data.cookieCount + ' 条）');
+
+      bookMeta.innerHTML = '';
+      addChip('书名', data.title || '未知');
+      addChip('作者', data.author || '未知');
+      addChip('章节', data.chapters.length + ' 章');
+      addChip('格式', (data.format || '未知').toUpperCase());
+      addChip('bookId', data.bookId);
+
+      bookCard.hidden = false;
+      const note = data.paidCount
+        ? '识别成功，共 ' + data.chapters.length + ' 章（其中 ' + data.paidCount + ' 章为付费章，无权益时只能拿到试读）'
+        : '识别成功，共 ' + data.chapters.length + ' 章';
+      showMsg(inspectMsg, data.paidCount ? 'warn' : 'ok', note);
+      $('limit').max = data.chapters.length;
+    }catch(err){
+      setStatus(inspectStatus, 'err', '请求失败');
+      showMsg(inspectMsg, 'err', String(err));
+    }finally{
+      btnInspect.disabled = false;
+    }
+  });
+
+  function addChip(label, value){
+    const el = document.createElement('span');
+    el.className = 'chip';
+    el.append(document.createTextNode(label + ' '));
+    const b = document.createElement('b'); b.textContent = value;
+    el.appendChild(b);
+    bookMeta.appendChild(el);
+  }
+
+  // ---- 模式切换 ----
+  document.querySelectorAll('input[name=mode]').forEach(r => {
+    r.addEventListener('change', () => {
+      const mode = document.querySelector('input[name=mode]:checked').value;
+      $('modeExtra').hidden = mode === 'all';
+      $('limitField').hidden = mode !== 'limit';
+      $('specField').hidden = mode !== 'custom';
+      updateEstimate();
+    });
+  });
+  $('limit').addEventListener('input', updateEstimate);
+
+  function updateEstimate(){
+    if (!bookInfo) return;
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    let n = bookInfo.chapters.length;
+    if (mode === 'limit') n = Math.min(parseInt($('limit').value || '0', 10) || 0, n);
+    if (mode === 'custom') n = 0;
+    if (mode === 'custom') setStatus(exportStatus, '', '自定义范围，导出时按实际选择计算');
+    else setStatus(exportStatus, '', '将导出 ' + n + ' 章，预计 ' + Math.max(1, Math.round(n * 1.6)) + ' 分钟内完成');
+  }
+
+  // ---- 导出 ----
+  btnExport.addEventListener('click', async () => {
+    hideMsg(exportMsg);
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    const payload = {
+      cookie: cookie.value.trim(),
+      readerUrl: readerUrl.value.trim(),
+      bookId: (bookInfo && bookInfo.bookId) || bookId.value.trim(),
+      mode: mode,
+      limit: parseInt($('limit').value || '0', 10) || 0,
+      spec: $('spec').value.trim()
+    };
+    if (mode === 'custom' && !payload.spec){
+      showMsg(exportMsg, 'err', '请填写自定义范围'); return;
+    }
+
+    btnExport.disabled = true;
+    setStatus(exportStatus, 'run', '正在启动…');
+    clearLog();
+    bar.classList.remove('done');
+    bar.firstElementChild.style.width = '0%';
+    pctText.textContent = '0 / 0';
+
+    try{
+      const res = await fetch('/api/export', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok){
+        setStatus(exportStatus, 'err', '启动失败');
+        showMsg(exportMsg, 'err', data.message || '未知错误');
+        btnExport.disabled = false;
+        return;
+      }
+      currentJob = data.jobId;
+      progressCard.hidden = false;
+      progressCard.scrollIntoView({behavior:'smooth', block:'nearest'});
+      btnCancel.disabled = false;
+      btnDownload.disabled = true;
+      listen(data.jobId);
+    }catch(err){
+      setStatus(exportStatus, 'err', '请求失败');
+      showMsg(exportMsg, 'err', String(err));
+      btnExport.disabled = false;
+    }
+  });
+
+  function listen(jobId){
+    if (source) source.close();
+    source = new EventSource('/api/jobs/' + jobId + '/events');
+    let counter = 0;
+
+    source.onmessage = ev => {
+      let e;
+      try{ e = JSON.parse(ev.data); }catch(_){ return; }
+
+      if (e.type === 'log'){
+        counter++;
+        appendLog(String(counter).padStart(3, '0'), e.message);
+        return;
+      }
+      if (e.type === 'progress'){
+        const pct = e.total ? Math.round(e.done / e.total * 100) : 0;
+        bar.firstElementChild.style.width = pct + '%';
+        pctText.textContent = e.done + ' / ' + e.total + '  (' + pct + '%)';
+        if (e.title) currentChapter.textContent = e.title;
+        if (e.title !== '准备就绪'){
+          counter++;
+          appendLog(String(counter).padStart(3, '0'), e.done + '. ' + e.title);
+        }
+        return;
+      }
+      if (e.type === 'done'){
+        bar.classList.add('done');
+        bar.firstElementChild.style.width = '100%';
+        const skipped = (e.message || '').indexOf('跳过') >= 0;
+        setStatus(exportStatus, 'ok', skipped ? '完成（有章节跳过）' : '导出完成');
+        showMsg(exportMsg, skipped ? 'warn' : 'ok',
+          (e.message || '导出完成') + '｜' + e.file + '（' + formatSize(e.size) + '）');
+        btnDownload.disabled = false;
+        btnDownload.onclick = () => { window.location.href = '/api/jobs/' + jobId + '/file'; };
+        btnCancel.disabled = true;
+        btnExport.disabled = false;
+        source.close();
+        return;
+      }
+      if (e.type === 'error'){
+        setStatus(exportStatus, 'err', '导出失败');
+        showMsg(exportMsg, 'err', e.message);
+        btnCancel.disabled = true;
+        btnExport.disabled = false;
+        source.close();
+      }
+    };
+
+    source.onerror = () => {
+      if (source) source.close();
+      if (btnExport.disabled){
+        setStatus(exportStatus, 'err', '连接中断');
+        btnExport.disabled = false;
+      }
+    };
+  }
+
+  btnCancel.addEventListener('click', async () => {
+    if (!currentJob) return;
+    btnCancel.disabled = true;
+    try{ await fetch('/api/jobs/' + currentJob + '/cancel', {method:'POST'}); }catch(e){}
+  });
+
+  function formatSize(n){
+    if (!n) return '0 B';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1024 / 1024).toFixed(2) + ' MB';
+  }
+})();
+</script>
+</body>
+</html>
